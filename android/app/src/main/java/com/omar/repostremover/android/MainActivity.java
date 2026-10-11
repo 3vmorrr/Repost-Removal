@@ -391,6 +391,9 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
             return;
         }
 
+        int attemptsInGroup = 0;
+        int groupSize = randomBetween(35, 45);
+        Log.i(TAG, "Removal pacing initialized: groupSize=" + groupSize);
         for (int i = 0; i < queue.length() && !stopRequested.get(); i++) {
             JSONObject item = queue.optJSONObject(i);
             if (item == null) continue;
@@ -423,7 +426,18 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
             processed = i + 1;
             flow = "Removing selected · " + processed + " / " + queue.length();
             main.post(this::publishActivity);
-            if (i + 1 < queue.length() && !stopRequested.get() && !pause(1000)) break;
+            attemptsInGroup++;
+            if (attemptsInGroup >= groupSize) {
+                if (i + 1 < queue.length() && !stopRequested.get()) {
+                    long cooldown = randomBetween(4_000, 7_000);
+                    Log.i(TAG, "Removal cooldown: seconds=" + (cooldown / 1_000.0));
+                    if (!pause(cooldown)) break;
+                }
+                attemptsInGroup = 0;
+                groupSize = randomBetween(35, 45);
+            } else if (i + 1 < queue.length() && !stopRequested.get() && !pause(randomBetween(300, 600))) {
+                break;
+            }
         }
 
         if (attempted.length() > 0 && !stopRequested.get()) {
@@ -758,6 +772,10 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
     private boolean pause(long millis) {
         try { Thread.sleep(millis); return !stopRequested.get(); }
         catch (InterruptedException ignored) { Thread.currentThread().interrupt(); return false; }
+    }
+
+    private static int randomBetween(int minimum, int maximum) {
+        return java.util.concurrent.ThreadLocalRandom.current().nextInt(minimum, maximum + 1);
     }
 
     private static JSONObject object(Object value) throws JSONException {

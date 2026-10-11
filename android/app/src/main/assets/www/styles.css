@@ -103,5 +103,8 @@ body.dark { --on-green: #192d22; --on-danger: #30201d; }
 .operation-stats span { display: inline-flex; align-items: baseline; gap: 5px; }
 .operation-stats b { color: var(--text); font-size: 12px; font-variant-numeric: tabular-nums; }
 .operation-current { margin: 9px 0 0; line-height: 1.5; }
+.operation-open-hint { display: flex; align-items: flex-start; gap: 9px; margin-top: 11px; padding: 10px 12px; border: 1px solid color-mix(in srgb,var(--amber) 28%,var(--line)); border-radius: 10px; background: var(--amber-pale); color: var(--text); font-size: 12px; line-height: 1.6; }
+.operation-open-hint svg { width: 17px; height: 17px; flex: 0 0 17px; margin-top: 1px; fill: none; stroke: var(--amber); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+html[dir="rtl"] .operation-open-hint { text-align: right; }
 @media(max-width:760px){.operation-card{padding:13px}.operation-stats{gap:7px 12px}}
 @media(prefers-reduced-motion:reduce){.operation-fill.indeterminate{animation:none;transform:none}.operation-fill{transition:none}}

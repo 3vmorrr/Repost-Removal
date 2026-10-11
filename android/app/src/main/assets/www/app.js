@@ -193,11 +193,15 @@ function operationCard() {
       ? tr('activity.verifyPages', { page: progress.verificationPage, total: progress.verificationTotal })
       : tr('activity.removeCount', { done: progress.processed, total: progress.total });
   const stopButton = running ? `<button class="button button-outline small operation-stop" data-action="stop">${tr('activity.stop')}</button>` : '';
+  const keepOpenHint = !scanning && !verifying && running
+    ? `<aside class="operation-open-hint" role="note" aria-live="off"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5m0-8h.01"></path></svg><span>${tr('activity.keepOpen')}</span></aside>`
+    : '';
   return `<section class="operation-card" aria-live="polite" aria-label="${tr('activity.title')}">
     <div class="operation-heading"><span class="operation-spinner ${running ? 'active' : ''}" aria-hidden="true"></span><div class="operation-copy"><strong>${tr(titleKey)}</strong><span>${escapeHtml(localizedState(data.state))}</span></div><time class="operation-time" dir="ltr">${formatDuration(elapsed)}</time>${stopButton}</div>
     <div class="operation-track" role="progressbar" aria-label="${tr('activity.title')}" aria-valuemin="0" aria-valuemax="100" ${scanning ? '' : `aria-valuenow="${percent}"`}><span class="operation-fill ${scanning && running ? 'indeterminate' : ''}" style="width:${scanning && running ? 34 : percent}%"></span></div>
     <div class="operation-stats"><span><b>${progress.found}</b>${tr('activity.found')}</span>${scanning ? `<span><b>${progress.pagesScanned}</b>${tr('activity.pages')}</span>` : `<span><b>${progress.processed}/${progress.total}</b>${tr('activity.processed')}</span><span><b>${progress.requested}</b>${tr('activity.requested')}</span><span><b>${progress.failed}</b>${tr('activity.failed')}</span>`}</div>
     <p class="operation-current">${current}</p>
+    ${keepOpenHint}
   </section>`;
 }
 
