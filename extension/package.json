@@ -1,0 +1,35 @@
+{
+  "name": "tiktok-repost-remover",
+  "version": "2.2.0",
+  "private": true,
+  "description": "A safe two-phase MV3 extension for scanning, reviewing, and selectively removing TikTok reposts.",
+  "author": {
+    "name": "Yiğit (yiitxyz)",
+    "url": "https://github.com/yiitxyz"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yiitxyz/tiktokRepostRemover.git"
+  },
+  "homepage": "https://github.com/yiitxyz/tiktokRepostRemover#readme",
+  "bugs": "https://github.com/yiitxyz/tiktokRepostRemover/issues",
+  "keywords": ["brave", "chrome-extension", "manifest-v3", "tiktok", "typescript"],
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "package": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package.ps1",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "@types/chrome": "^0.1.0",
+    "esbuild": "^0.25.8",
+    "eslint": "^9.32.0",
+    "globals": "^16.3.0",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.38.0"
+  }
+}

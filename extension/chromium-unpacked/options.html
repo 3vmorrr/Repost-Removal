@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TikTok Repost Remover</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <main>
+      <header><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 7v5h-5M4.8 9a7.5 7.5 0 0 1 12.7-2L20 9M4 17v-5h5m10.2 3a7.5 7.5 0 0 1-12.7 2L4 15"/></svg></span><div><p class="eyebrow">REPOST REMOVER</p><h1 data-i18n="settings">Settings</h1></div></header>
+      <section class="panel">
+        <h2 data-i18n="preferences">Preferences</h2>
+        <label for="theme" data-i18n="theme">Theme</label><select id="theme"><option value="system" data-i18n="systemTheme">Use device setting</option><option value="light" data-i18n="lightTheme">Light</option><option value="dark" data-i18n="darkTheme">Dark</option></select>
+        <label for="locale" data-i18n="language">Language</label><select id="locale"><option value="en" data-i18n="english">English</option><option value="ar" data-i18n="arabic">العربية</option></select>
+        <label for="mode" data-i18n="mode">Operating mode</label><select id="mode"><option value="local" data-i18n="localModeName">Local mode</option><option value="telegram" data-i18n="telegramModeName">Telegram paired mode</option></select>
+        <p id="mode-help" class="note" data-i18n="localModeHelp">Scan and remove from this signed-in browser. Repost data stays on this device.</p>
+      </section>
+      <section class="panel">
+        <h2 data-i18n="telegramPairing">Telegram pairing</h2>
+        <p data-i18n="pairingIntro">Pairing is optional. It lets Telegram send tasks to this browser; TikTok login and requests remain in your browser.</p>
+        <label for="worker-url" data-i18n="workerUrl">Worker URL</label>
+        <input id="worker-url" type="url" placeholder="https://your-worker.workers.dev" autocomplete="url" spellcheck="false">
+        <label for="pair-code" data-i18n="pairCode">One-time pairing code</label>
+        <input id="pair-code" type="text" inputmode="text" maxlength="12" autocomplete="one-time-code" placeholder="12 hexadecimal characters" spellcheck="false" dir="ltr">
+        <div class="button-row"><button id="pair" type="button" data-i18n="pair">Pair with Telegram</button><button id="disconnect" class="secondary" type="button" data-i18n="disconnect">Disconnect pairing</button></div>
+        <p id="status" role="status" aria-live="polite">Not paired. Local mode is ready to use.</p><p id="quota" class="note"></p>
+      </section>
+      <section class="panel">
+        <h2 data-i18n="helpPrivacy">Help & privacy</h2>
+        <p data-i18n="standaloneHelp">Local mode works without Telegram.</p>
+        <p data-i18n="telegramHelp">For Telegram mode, send /connect and enter the temporary code here.</p>
+        <p data-i18n="tiktokWarning">TikTok may change or refuse its private interface.</p>
+        <p><span data-i18n="contact">Contact</span>: <a href="https://t.me/OmarEbrahim1" target="_blank" rel="noreferrer">@OmarEbrahim1</a> · <span class="latin">v2.2.0</span></p>
+        <button id="clear-data" class="secondary" type="button" data-i18n="clearData">Clear local scan data</button>
+        <p class="note" data-i18n="clearDataHelp">Clearing removes this browser’s saved repost list and run counters.</p>
+      </section>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>

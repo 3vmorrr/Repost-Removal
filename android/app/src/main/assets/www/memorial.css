@@ -1,0 +1,179 @@
+.memorial-nav {
+  font-family: "Noto Naskh Arabic", "Amiri", "Traditional Arabic", "Tahoma", serif;
+  letter-spacing: 0;
+}
+
+.developer-nav .nav-icon svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+
+.content:has(.memorial-page) {
+  padding: 20px 24px 30px;
+}
+
+.memorial-page {
+  --memorial-paper: #fbf9f3;
+  --memorial-ink: #394333;
+  --memorial-muted: #5f6558;
+  --memorial-olive: #687653;
+  --memorial-gold: #b39b61;
+  --memorial-line: #dfd8c5;
+  width: min(100%, 960px);
+  margin: 0 auto;
+  color: var(--memorial-ink);
+  font-family: "Noto Naskh Arabic", "Amiri", "Traditional Arabic", "Noto Sans Arabic", "Tahoma", serif;
+  text-align: center;
+  direction: rtl;
+  unicode-bidi: plaintext;
+  overflow-wrap: anywhere;
+}
+
+.dark .memorial-page {
+  --memorial-paper: #292d27;
+  --memorial-ink: #f0eddf;
+  --memorial-muted: #d1cebf;
+  --memorial-olive: #bdc6a7;
+  --memorial-gold: #c5b47e;
+  --memorial-line: #4d5145;
+}
+
+.memorial-card {
+  position: relative;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 30px clamp(24px, 6vw, 76px) 38px;
+  overflow: hidden;
+  background: var(--memorial-paper);
+  border: 1px solid var(--memorial-line);
+  border-radius: 18px;
+}
+
+.memorial-ornament,
+.memorial-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  color: var(--memorial-gold);
+}
+
+.memorial-ornament { margin: 0 auto 10px; }
+.memorial-ornament span { width: 40px; height: 1px; background: var(--memorial-line); }
+.memorial-ornament i,
+.memorial-divider i {
+  display: block;
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--memorial-gold);
+  transform: rotate(45deg);
+}
+
+.memorial-kicker {
+  margin: 0 0 7px;
+  color: var(--memorial-olive);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+
+.memorial-page h1 {
+  margin: 0;
+  color: var(--memorial-ink);
+  font-size: clamp(27px, 3.4vw, 38px);
+  font-weight: 700;
+  line-height: 1.55;
+  text-wrap: balance;
+}
+
+.memorial-subtitle {
+  max-width: 700px;
+  margin: 8px auto 20px;
+  color: var(--memorial-muted);
+  font-size: clamp(16px, 1.8vw, 20px);
+  line-height: 1.9;
+}
+
+.memorial-portrait-wrap { margin: 0 auto 19px; }
+.memorial-portrait-ring {
+  display: grid;
+  width: clamp(168px, 20vw, 210px);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  padding: 7px;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid var(--memorial-gold);
+  border-radius: 50%;
+  background: var(--memorial-paper);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--memorial-gold) 12%, transparent);
+}
+
+.memorial-photo,
+.memorial-photo-placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.memorial-photo { object-fit: cover; object-position: center 36%; }
+
+.memorial-photo-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--memorial-olive);
+  background: #efede3;
+  font-size: 15px;
+}
+
+.dark .memorial-photo-placeholder { background: #353a31; }
+.memorial-photo-placeholder svg { width: 58px; height: 58px; fill: none; stroke: currentColor; stroke-width: 1.15; stroke-linecap: round; stroke-linejoin: round; }
+.memorial-portrait-wrap figcaption { margin-top: 11px; color: var(--memorial-muted); font-size: 14px; }
+.memorial-divider { margin: 19px auto 17px; }
+.memorial-divider span { width: 64px; height: 1px; background: var(--memorial-line); }
+
+.memorial-prayer {
+  max-width: 720px;
+  margin: 0 auto;
+  color: var(--memorial-ink);
+  font-size: clamp(19px, 2.15vw, 23px);
+  line-height: 2.05;
+  font-weight: 500;
+  text-wrap: pretty;
+}
+
+.memorial-prayer-general {
+  margin-top: 19px;
+  padding: 15px 18px;
+  border-top: 1px solid var(--memorial-line);
+  color: var(--memorial-olive);
+}
+
+.memorial-closing {
+  margin: 14px 0 0;
+  color: var(--memorial-muted);
+  font-size: 16px;
+  line-height: 1.9;
+}
+
+@media (max-width: 1080px) {
+  .content:has(.memorial-page) { padding-inline: 16px; }
+  .memorial-card { padding-inline: clamp(18px, 4vw, 44px); }
+}
+
+@media (max-width: 720px) {
+  .memorial-card { padding: 22px 16px 26px; border-radius: 14px; }
+  .memorial-subtitle { margin-bottom: 16px; }
+  .memorial-prayer { font-size: 19px; line-height: 1.95; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .memorial-page *, .memorial-page *::before, .memorial-page *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

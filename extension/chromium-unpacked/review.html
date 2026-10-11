@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Review TikTok Reposts</title>
+    <link rel="stylesheet" href="review.css">
+  </head>
+  <body>
+    <main>
+      <header class="page-header"><div><p class="eyebrow" data-i18n="appName">Repost Remover</p><h1 data-i18n="reviewTitle">Review reposts</h1><p id="status" role="status" aria-live="polite">Loading…</p></div><button id="delete" class="danger" type="button" data-i18n="deleteSelected">Remove selected</button></header>
+      <section class="stats" aria-label="Deletion totals">
+        <div><strong id="collected">0</strong><span data-i18n="collected">Found</span></div><div><strong id="selected">0</strong><span data-i18n="selected">Selected</span></div>
+        <div><strong id="removed">0</strong><span data-i18n="removed">Removed</span></div><div><strong id="failed">0</strong><span data-i18n="failed">Failed</span></div>
+        <div><strong id="remaining">0</strong><span data-i18n="remaining">Remaining</span></div><div><strong id="elapsed">0s</strong><span data-i18n="elapsed">Elapsed</span></div>
+        <div><strong id="eta">—</strong><span data-i18n="eta">Est. time</span></div>
+      </section>
+      <section class="toolbar" aria-label="Review controls">
+        <input id="search" type="search" data-i18n-placeholder="searchPlaceholder" data-i18n-aria-label="searchLabel" placeholder="Search reposts">
+        <button id="all" type="button" data-i18n="selectAll">Select all</button><button id="none" type="button" data-i18n="selectNone">Select none</button><button id="invert" type="button" data-i18n="invert">Invert selection</button>
+        <button id="pause" type="button" data-i18n="pause">Pause</button><button id="resume" type="button" data-i18n="resume">Resume</button><button id="stop" type="button" data-i18n="stop">Stop</button>
+        <button id="retry" type="button" data-i18n="retry">Retry remaining</button><button id="json" type="button" data-i18n="exportJson">Export JSON</button><button id="csv" type="button" data-i18n="exportCsv">Export CSV</button>
+      </section>
+      <p id="error" class="error" role="alert" hidden></p>
+      <p id="empty-state" class="empty" hidden>No reposts yet. Start a scan from the extension popup.</p>
+      <section id="items" class="grid" aria-live="polite"></section>
+      <nav class="pager" aria-label="Repost pages"><button id="previous" type="button" data-i18n="previous">Previous</button><span id="page">Page 1</span><button id="next" type="button" data-i18n="next">Next</button></nav>
+      <p class="safety" data-i18n="onlyChecked">Only selected reposts will be removed. TikTok may throttle or refuse requests.</p>
+    </main>
+    <script src="review.js"></script>
+  </body>
+</html>

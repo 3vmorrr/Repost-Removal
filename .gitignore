@@ -1,9 +1,24 @@
-node_modules/
-dist/
-release/
+# Dependencies and generated output
+**/node_modules/
+**/dist/
+**/release/
+**/.gradle/
+**/build/
+**/app/build/
+android/local.properties
+android/logs/
+android/ui-review/
+
+# Local databases and secrets
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
-npm-debug.log*
+*.jks
+*.keystore
+.env
+.env.*
+
+# OS files
 .DS_Store
 Thumbs.db
+Desktop.ini
