@@ -14,6 +14,8 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowManager;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 import android.webkit.CookieManager;
 import android.webkit.ValueCallback;
 import android.webkit.WebResourceRequest;
@@ -33,6 +35,8 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class MainActivity extends Activity implements AndroidJavascriptBridge.Dispatcher {
@@ -54,6 +58,7 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
     private WebViewAssetLoader assetLoader;
     private RepostStore store;
     private TikTokBrowser tiktok;
+    private OnBackInvokedCallback systemBackCallback;
     private boolean browserVisible;
     private boolean destroyed;
     private String flow = "Ready";
@@ -107,6 +112,11 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
         root.addView(browserFrame, new FrameLayout.LayoutParams(-1, -1));
         setContentView(root);
         applyThemeSystemBars();
+        if (Build.VERSION.SDK_INT >= 33) {
+            systemBackCallback = this::handleBackPressed;
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    OnBackInvokedDispatcher.PRIORITY_DEFAULT, systemBackCallback);
+        }
 
         main.post(sessionProbe);
         dashboard.loadUrl(ASSET_ORIGIN + "/assets/www/index.html");
@@ -189,6 +199,7 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
                 case "setTheme": reply(id, setPreference("theme", args.getString(0), "light", "dark")); break;
                 case "setLanguage": reply(id, setPreference("language", args.getString(0), "en", "ar")); break;
                 case "openSocial": openSocial(args.getString(0)); reply(id, true); break;
+                case "openLogin": openTikTokLogin(); reply(id, true); break;
                 case "openBrowser": browserVisible = true; tiktok.openIfNeeded(); showBrowser(); emit("browserVisible", true); emitOverview(); reply(id, true); break;
                 case "hideBrowser": browserVisible = false; hideBrowser(); emit("browserVisible", false); emitOverview(); reply(id, true); break;
                 case "browserControl": browserControl(args.getString(0)); reply(id, true); break;
@@ -646,8 +657,11 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
             main.post(() -> { activity = idleActivity(); flow = "Ready"; found = 0; browserVisible = false; hideBrowser(); emitOverview(); });
             tiktok.logoutPage();
             Thread.sleep(800);
-            tiktok.clearSession();
-            Thread.sleep(2200);
+            CountDownLatch sessionClearCompleted = new CountDownLatch(1);
+            tiktok.clearSession(sessionClearCompleted::countDown);
+            if (!sessionClearCompleted.await(12, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("TikTok's signed-out page did not finish loading.");
+            }
             JSONObject identity = tiktok.pageIdentity();
             JSONObject result = identity != null && identity.optBoolean("loggedOutSignal")
                     ? session("logged-out", null, null)
@@ -681,7 +695,6 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
     }
 
     private void showBrowser() {
-        tiktok.openIfNeeded();
         browserFrame.setVisibility(View.VISIBLE);
         tiktokView.setVisibility(View.GONE);
         layoutBrowserView();
@@ -718,6 +731,7 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
     }
 
     private void hideBrowser() {
+        if (tiktok != null) tiktok.dismissPopupsForHide();
         if (tiktokView != null) {
             // Keep the signed-in WebView attached, but hide its rounded viewport so it cannot
             // cover other dashboard pages through Android's WebView surface composition.
@@ -739,6 +753,14 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
             default: throw new IllegalArgumentException("Unknown social link.");
         }
         startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+    }
+
+    private void openTikTokLogin() {
+        browserVisible = true;
+        tiktok.openLogin();
+        showBrowser();
+        emit("browserVisible", true);
+        emitOverview();
     }
 
     private void emitOverview() { try { emit("overview", overview()); } catch (Exception ignored) { } }
@@ -815,7 +837,12 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
 
     @Override
     public void onBackPressed() {
+        handleBackPressed();
+    }
+
+    private void handleBackPressed() {
         if (browserVisible) {
+            if (tiktok != null && tiktok.dismissTopPopupForBack()) return;
             browserVisible = false;
             hideBrowser();
             emit("browserVisible", false);
@@ -827,6 +854,10 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
     @Override
     protected void onDestroy() {
         destroyed = true;
+        if (Build.VERSION.SDK_INT >= 33 && systemBackCallback != null) {
+            getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(systemBackCallback);
+            systemBackCallback = null;
+        }
         main.removeCallbacks(sessionProbe);
         operations.shutdownNow();
         if (tiktok != null) tiktok.dispose();

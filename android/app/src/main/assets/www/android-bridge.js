@@ -49,6 +49,7 @@
       telegram: 'https://t.me/omarebrahim1'
     },
     openSocial: platform => invoke('openSocial', [platform]),
+    openLogin: () => invoke('openLogin'),
     openBrowser: () => invoke('openBrowser'),
     hideBrowser: () => invoke('hideBrowser'),
     browserControl: action => invoke('browserControl', [action]),

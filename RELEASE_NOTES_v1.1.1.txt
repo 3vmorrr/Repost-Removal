@@ -1,0 +1,16 @@
+Repost Remover v1.1.1 — Android preview update
+
+This release updates the Android alpha preview. Windows and browser-extension packages remain available in v1.1.0.
+
+Android preview APK: 1.0.0-alpha2 (debug-signed; for sideload testing only).
+
+Changes:
+- Keep TikTok sign-in popups inside the Android TikTok browser and close them through a consistent Back, Home, or browser-hide action.
+- Clear TikTok WebView cookies and origin storage on sign-out without clearing Google or other sites' browser sessions.
+- Wait for TikTok's signed-out page to finish loading before reporting logout status.
+- Remove stale sign-in warnings from Android settings.
+
+Limits:
+- This is not a Play Store or production-signed build.
+- Android's app sandbox does not allow importing the private session from the separately installed TikTok app.
+- TikTok's private repost endpoints can change or be restricted.

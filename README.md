@@ -4,7 +4,7 @@ A local-first TikTok repost review and removal project, published as three separ
 
 ## Downloads
 
-See the [Repost Remover v1.1.0 release](https://github.com/3vmorrr/Repost-Removal/releases/tag/v1.1.0) for Windows builds, an Android preview APK, and browser-extension packages.
+See the [Repost Remover v1.1.1 release](https://github.com/3vmorrr/Repost-Removal/releases/tag/v1.1.1) for the updated Android preview. Windows and browser-extension packages remain available in the [v1.1.0 release](https://github.com/3vmorrr/Repost-Removal/releases/tag/v1.1.0).
 
 ### Windows desktop
 
@@ -12,7 +12,7 @@ Download the x64 [installer](https://github.com/3vmorrr/Repost-Removal/releases/
 
 ### Android preview
 
-Download [`Repost-Remover-Android-1.0.0-alpha1-debug.apk`](https://github.com/3vmorrr/Repost-Removal/releases/download/v1.1.0/Repost-Remover-Android-1.0.0-alpha1-debug.apk). This is a debug-signed alpha preview, intended for sideload testing. It is not a Play Store or production-signed release. Android app source/build notes are in [`android/`](android/).
+Download [`Repost-Remover-Android-1.0.0-alpha2-debug.apk`](https://github.com/3vmorrr/Repost-Removal/releases/download/v1.1.1/Repost-Remover-Android-1.0.0-alpha2-debug.apk). This is a debug-signed alpha preview, intended for sideload testing. It is not a Play Store or production-signed release. Android app source/build notes are in [`android/`](android/).
 
 ### Chrome and Edge extension (Developer Mode)
 

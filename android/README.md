@@ -1,27 +1,34 @@
 # Repost Remover for Android
 
-Android alpha companion app. It shares the local renderer, Arabic/English UI, portrait assets, and design tokens with Desktop, with an Android WebView shell and mobile navigation.
+Android companion project for Repost Remover. It reuses the desktop renderer, supplied portraits, bilingual copy, colors, and typography, then adds a touch-first mobile layout and an Android `WebView` shell.
 
 ## Install the preview
 
-Download `Repost-Remover-Android-1.0.0-alpha1-debug.apk` from the [v1.1.0 GitHub release](https://github.com/3vmorrr/Repost-Removal/releases/tag/v1.1.0). Allow installation from the browser or file manager when Android prompts. This APK is debug-signed for preview testing; it is not a Play Store or production-signed build. Updates signed with a different debug key may require uninstalling the previous preview first.
+Download [`Repost-Remover-Android-1.0.0-alpha2-debug.apk`](https://github.com/3vmorrr/Repost-Removal/releases/download/v1.1.1/Repost-Remover-Android-1.0.0-alpha2-debug.apk) from the [v1.1.1 release](https://github.com/3vmorrr/Repost-Removal/releases/tag/v1.1.1). This debug-signed APK is for sideload testing only; it is not a Play Store or production-signed build.
 
 ## Build
 
-Requires Android Studio or JDK 17+, Android SDK Platform 36, and network access for the first Gradle dependency download.
+Requirements: Android Studio or JDK 17+, Android SDK Platform 36, and an internet connection for the first Gradle dependency download.
 
 ```powershell
-.\gradlew.bat assembleDebug lintDebug
+cd android
+.\gradlew.bat assembleDebug
 ```
 
-APK output: `app\build\outputs\apk\debug\app-debug.apk`.
+Debug APK: `app\build\outputs\apk\debug\app-debug.apk`.
 
-## Session and privacy boundary
+## TikTok session boundary
 
-Sign-in takes place in the TikTok WebView inside this app. Android cannot access or reuse the separately installed TikTok app's session. No Accessibility Service permission is used. Review state is stored in the app's local SQLite database. Signing out clears repost rows and embedded TikTok WebView data while retaining language and theme preferences. The dashboard and memorial page are bundled; TikTok pages need internet access.
+Sign-in happens in the TikTok `WebView` embedded in Repost Remover. Android keeps that web session inside this app; it does not read or reuse the session from the separately installed TikTok app. The app does not request Accessibility Service permission or control TikTok's native interface.
 
-The app uses private TikTok website endpoints for listing and removing reposts. They may change or be blocked; login challenges and rate limits stop the operation. Removal is verified against a later listing. This is an alpha build and has not been signed for Play distribution.
+The scan and removal adapter uses the same private TikTok website endpoints as the desktop app. TikTok can change or block them at any time. Scan and removal controls remain sequential, cancellable, and verified against a follow-up repost listing. TikTok login challenges, rate limits, or account-safety responses stop the run.
+
+The Android app stores settings and review results locally in its own SQLite database. Signing out clears repost rows and TikTok-origin WebView data while retaining Google and other sites' browser sessions, app language, and theme settings. TikTok pages require internet access; the dashboard and memorial page are bundled locally.
 
 ## UI parity
 
-`app/src/main/assets/www/` is the Android-bundled UI. Shared desktop UI source lives in `../desktop/src/renderer/`; `android-mobile.css` provides mobile-only layout rules. Portrait asset replacement instructions are in `app/src/main/assets/www/assets/README.md`.
+`app/src/main/assets/www/` is copied from `desktop/src/renderer/`. Keep it aligned when changing the shared desktop UI. `android-mobile.css` adds only Android-specific mobile navigation, safe-area spacing, and touch-sized controls. Portrait files are the exact supplied desktop assets under `www/assets/`.
+
+## Implementation plan
+
+See [ANDROID_PLAN.md](ANDROID_PLAN.md) for the port phases and current implementation status.

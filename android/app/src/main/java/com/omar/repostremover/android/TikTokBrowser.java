@@ -5,7 +5,11 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Message;
+import android.util.Log;
+import android.view.ViewGroup;
 import android.webkit.CookieManager;
+import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -15,19 +19,38 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 
-import java.util.UUID;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 final class TikTokBrowser {
+    private static final String TAG = "RRMobile";
+
+    private static final class CookieDeletion {
+        final String url;
+        final String value;
+
+        CookieDeletion(String url, String value) {
+            this.url = url;
+            this.value = value;
+        }
+    }
+
     interface PageListener { void onPageChanged(); }
 
     private final Activity activity;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final WebView view;
+    private final List<WebView> popupViews = new ArrayList<>();
     private PageListener pageListener;
+    private Runnable sessionClearCompletion;
 
     TikTokBrowser(Activity activity, PageListener listener) {
         this.activity = activity;
@@ -36,9 +59,11 @@ final class TikTokBrowser {
         view.setBackgroundColor(0xffffffff);
         view.getSettings().setJavaScriptEnabled(true);
         view.getSettings().setDomStorageEnabled(true);
-        view.getSettings().setSupportMultipleWindows(false);
+        view.getSettings().setSupportMultipleWindows(true);
         view.getSettings().setAllowFileAccess(false);
         view.getSettings().setAllowContentAccess(false);
+        CookieManager.getInstance().setAcceptCookie(true);
+        CookieManager.getInstance().setAcceptThirdPartyCookies(view, true);
         view.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView webView, WebResourceRequest request) {
@@ -53,8 +78,98 @@ final class TikTokBrowser {
             @Override
             public void onPageFinished(WebView webView, String url) {
                 if (TikTokBrowser.this.pageListener != null) TikTokBrowser.this.pageListener.onPageChanged();
+                if (webView == view && sessionClearCompletion != null && isTikTokPage(url)) {
+                    Runnable completion = sessionClearCompletion;
+                    sessionClearCompletion = null;
+                    main.post(completion);
+                }
             }
         });
+        view.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onCreateWindow(WebView parent, boolean isDialog, boolean isUserGesture, Message resultMsg) {
+                if (!isTikTokPage(parent.getUrl()) || !(parent.getParent() instanceof ViewGroup)) {
+                    Log.w(TAG, "Rejected popup outside TikTok page context");
+                    return false;
+                }
+                Log.i(TAG, "Accepted TikTok auth popup; userGesture=" + isUserGesture);
+
+                WebView popup = new WebView(activity);
+                popup.getSettings().setJavaScriptEnabled(true);
+                popup.getSettings().setDomStorageEnabled(true);
+                popup.getSettings().setSupportMultipleWindows(false);
+                popup.getSettings().setAllowFileAccess(false);
+                popup.getSettings().setAllowContentAccess(false);
+                CookieManager.getInstance().setAcceptThirdPartyCookies(popup, true);
+                popup.setBackgroundColor(0xffffffff);
+                popup.setWebViewClient(new WebViewClient() {
+                    @Override
+                    public boolean shouldOverrideUrlLoading(WebView webView, WebResourceRequest request) {
+                        return route(request.getUrl());
+                    }
+
+                    @Override
+                    public boolean shouldOverrideUrlLoading(WebView webView, String url) {
+                        return route(Uri.parse(url));
+                    }
+
+                    @Override
+                    public void onPageFinished(WebView webView, String url) {
+                        Log.i(TAG, "Auth popup page finished: " + safeHost(url));
+                        if (TikTokBrowser.this.pageListener != null) TikTokBrowser.this.pageListener.onPageChanged();
+                    }
+                });
+                popup.setWebChromeClient(new WebChromeClient() {
+                    @Override
+                    public void onCloseWindow(WebView window) {
+                        Log.i(TAG, "Auth popup closed");
+                        closePopup(window);
+                    }
+                });
+
+                ViewGroup container = (ViewGroup) parent.getParent();
+                container.addView(popup, new ViewGroup.LayoutParams(-1, -1));
+                popup.bringToFront();
+                popupViews.add(popup);
+                WebView.WebViewTransport transport = (WebView.WebViewTransport) resultMsg.obj;
+                transport.setWebView(popup);
+                resultMsg.sendToTarget();
+                return true;
+            }
+        });
+    }
+
+    private boolean isTikTokPage(String url) {
+        Uri uri = Uri.parse(url == null ? "" : url);
+        String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.ROOT);
+        return "https".equals(uri.getScheme()) && (host.equals("tiktok.com") || host.endsWith(".tiktok.com"));
+    }
+
+    private String safeHost(String url) {
+        Uri uri = Uri.parse(url == null ? "" : url);
+        return uri.getHost() == null ? "unknown-host" : uri.getHost().toLowerCase(Locale.ROOT);
+    }
+
+    private void closePopup(WebView popup) {
+        main.post(() -> {
+            if (!popupViews.remove(popup)) return;
+            if (popup.getParent() instanceof ViewGroup) ((ViewGroup) popup.getParent()).removeView(popup);
+            popup.stopLoading();
+            popup.setWebChromeClient(null);
+            popup.setWebViewClient(new WebViewClient());
+            popup.destroy();
+            if (popupViews.isEmpty()) view.bringToFront();
+            else popupViews.get(popupViews.size() - 1).bringToFront();
+            if (pageListener != null) main.postDelayed(pageListener::onPageChanged, 900);
+        });
+    }
+
+    boolean dismissTopPopupForBack() {
+        if (popupViews.isEmpty()) return false;
+        WebView popup = popupViews.get(popupViews.size() - 1);
+        Log.i(TAG, "Closing auth popup from Back navigation");
+        closePopup(popup);
+        return true;
     }
 
     private boolean route(Uri uri) {
@@ -77,9 +192,34 @@ final class TikTokBrowser {
     boolean isLoading() { return view.getProgress() < 100; }
     String currentUrl() { return view.getUrl() == null ? "" : view.getUrl(); }
 
-    void openHome() { main.post(() -> view.loadUrl("https://www.tiktok.com/")); }
+    void openHome() {
+        main.post(() -> {
+            dismissAllPopups("Home navigation");
+            view.loadUrl("https://www.tiktok.com/");
+        });
+    }
+    void openLogin() { main.post(() -> view.loadUrl("https://www.tiktok.com/login")); }
     void openIfNeeded() { main.post(() -> { if (view.getUrl() == null) view.loadUrl("https://www.tiktok.com/"); }); }
-    void back() { main.post(() -> { if (view.canGoBack()) view.goBack(); }); }
+    void back() {
+        main.post(() -> {
+            if (!popupViews.isEmpty()) {
+                Log.i(TAG, "Closing auth popup from browser Back button");
+                closePopup(popupViews.get(popupViews.size() - 1));
+            } else if (view.canGoBack()) {
+                view.goBack();
+            }
+        });
+    }
+
+    void dismissPopupsForHide() {
+        main.post(() -> dismissAllPopups("browser hidden"));
+    }
+
+    private void dismissAllPopups(String reason) {
+        if (popupViews.isEmpty()) return;
+        Log.i(TAG, "Closing " + popupViews.size() + " auth popup(s) for " + reason);
+        for (WebView popup : new ArrayList<>(popupViews)) closePopup(popup);
+    }
     void reload() { main.post(view::reload); }
     void logoutPage() { main.post(() -> view.loadUrl("https://www.tiktok.com/logout")); }
     void cancelPendingReadRequests() {
@@ -88,19 +228,64 @@ final class TikTokBrowser {
                 null));
     }
 
-    void clearSession() {
+    void clearSession(Runnable completion) {
         main.post(() -> {
+            dismissAllPopups("logout");
             view.stopLoading();
             view.clearHistory();
-            view.clearCache(true);
             view.clearFormData();
-            view.evaluateJavascript("try{localStorage.clear();sessionStorage.clear()}catch(e){};true", null);
-            CookieManager.getInstance().removeAllCookies(ignored -> {
-                CookieManager.getInstance().flush();
-                android.webkit.WebStorage.getInstance().deleteAllData();
-                view.loadUrl("https://www.tiktok.com/");
-            });
+            CookieManager cookies = CookieManager.getInstance();
+            view.evaluateJavascript("try{localStorage.clear();sessionStorage.clear()}catch(e){};true",
+                    ignored -> clearTikTokCookies(cookies, completion));
         });
+    }
+
+    private void clearTikTokCookies(CookieManager cookies, Runnable completion) {
+        String[][] hosts = {
+                {"www.tiktok.com", "tiktok.com"},
+                {"tiktok.com", "tiktok.com"},
+                {"m.tiktok.com", "tiktok.com"},
+                {"www.tiktokv.com", "tiktokv.com"},
+                {"tiktokv.com", "tiktokv.com"}
+        };
+        Set<String> cookieNames = new LinkedHashSet<>();
+        for (String[] host : hosts) {
+            String cookieLine = cookies.getCookie("https://" + host[0] + "/");
+            if (cookieLine == null) continue;
+            for (String cookie : cookieLine.split(";")) {
+                int separator = cookie.indexOf('=');
+                if (separator > 0) cookieNames.add(cookie.substring(0, separator).trim());
+            }
+        }
+
+        List<CookieDeletion> deletions = new ArrayList<>();
+        for (String[] host : hosts) {
+            for (String name : cookieNames) {
+                String prefix = name + "=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/; Secure";
+                String url = "https://" + host[0] + "/";
+                deletions.add(new CookieDeletion(url, prefix));
+                deletions.add(new CookieDeletion(url, prefix + "; Domain=." + host[1]));
+            }
+        }
+        if (deletions.isEmpty()) {
+            reloadAfterSessionClear(cookies, completion);
+            return;
+        }
+
+        AtomicInteger pending = new AtomicInteger(deletions.size());
+        for (CookieDeletion deletion : deletions) {
+            cookies.setCookie(deletion.url, deletion.value, ignored -> {
+                if (pending.decrementAndGet() == 0) {
+                    main.post(() -> reloadAfterSessionClear(cookies, completion));
+                }
+            });
+        }
+    }
+
+    private void reloadAfterSessionClear(CookieManager cookies, Runnable completion) {
+        cookies.flush();
+        sessionClearCompletion = completion;
+        view.loadUrl("https://www.tiktok.com/");
     }
 
     Object runExpression(String expression, long timeoutSeconds) throws Exception {
@@ -206,7 +391,16 @@ final class TikTokBrowser {
     void dispose() {
         pageListener = null;
         main.post(() -> {
+            for (WebView popup : popupViews) {
+                if (popup.getParent() instanceof ViewGroup) ((ViewGroup) popup.getParent()).removeView(popup);
+                popup.stopLoading();
+                popup.setWebChromeClient(null);
+                popup.setWebViewClient(new WebViewClient());
+                popup.destroy();
+            }
+            popupViews.clear();
             view.stopLoading();
+            view.setWebChromeClient(null);
             view.setWebViewClient(new WebViewClient());
             view.destroy();
         });

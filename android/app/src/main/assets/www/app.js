@@ -141,7 +141,7 @@ function statusCard() {
     ? `<button class="button button-outline small" data-action="logout">${tr('home.logout')}</button>`
     : '';
   const check = status === 'checking' ? '' : `<button class="button button-quiet small" data-action="check-session">${tr('home.check')}</button>`;
-  return `<section class="card session-card"><div class="session-dot ${connected ? 'connected' : ''}" aria-hidden="true"></div><div class="session-copy"><strong>${tr('home.sessionTitle')}</strong><span>${sessionLabel()}</span><small>${tr('home.sessionHelp')}</small></div><div class="session-actions">${check}${action}</div></section>`;
+  return `<section class="card session-card"><div class="session-dot ${connected ? 'connected' : ''}" aria-hidden="true"></div><div class="session-copy"><strong>${tr('home.sessionTitle')}</strong><span>${sessionLabel()}</span></div><div class="session-actions">${check}${action}</div></section>`;
 }
 
 function homePage() {
@@ -303,6 +303,14 @@ async function goToScan(openBrowser = true) {
   await refresh();
 }
 
+async function openLoginFlow() {
+  page = 'scan';
+  search = '';
+  browserVisible = true;
+  await call(app.openLogin);
+  await refresh();
+}
+
 async function checkSession() {
   if (page !== 'scan') await goToScan(true);
   const session = await call(app.checkSession);
@@ -330,7 +338,7 @@ async function logout() {
 async function startScan() {
   if (data.session?.status !== 'logged-in') {
     notify('toast.loginFirst', {}, true);
-    await goToScan(true);
+    await openLoginFlow();
     return;
   }
   await call(app.startScan);
@@ -363,7 +371,7 @@ async function handleClick(event) {
   }
   if (target.dataset.browser) { await call(app.browserControl, target.dataset.browser); return; }
   const action = target.dataset.action;
-  if (action === 'login') { await goToScan(true); return; }
+  if (action === 'login') { await openLoginFlow(); return; }
   if (action === 'scan-page') { await goToScan(true); return; }
   if (action === 'check-session') { await checkSession(); return; }
   if (action === 'logout') { await logout(); return; }
