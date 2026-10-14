@@ -1,0 +1,6 @@
+<resources>
+    <string name="operation_service_description">يعرض تقدم فحص وإزالة إعادة النشر أثناء تشغيلهما.</string>
+    <string name="operation_notification_channel">عمليات إعادة النشر</string>
+    <string name="operation_notification_channel_description">تقدم فحص أو إزالة إعادة النشر على TikTok</string>
+</resources>
+

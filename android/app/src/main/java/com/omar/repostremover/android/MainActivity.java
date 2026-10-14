@@ -1,7 +1,9 @@
 package com.omar.repostremover.android;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -11,6 +13,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.view.View;
+import android.view.Gravity;
 import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowManager;
@@ -23,6 +26,12 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.webkit.WebViewAssetLoader;
 
@@ -43,13 +52,15 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
     private static final String ASSET_ORIGIN = "https://appassets.androidplatform.net";
     private static final String TIKTOK_HOME = "https://www.tiktok.com/";
     private static final String TAG = "RRMobile";
+    private static final int REQUEST_POST_NOTIFICATIONS = 4202;
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService operations = Executors.newSingleThreadExecutor();
     private final AtomicBoolean operationActive = new AtomicBoolean(false);
     private final AtomicBoolean logoutQueued = new AtomicBoolean(false);
-    private final AtomicBoolean stopRequested = new AtomicBoolean(false);
+    private final AtomicBoolean stopRequested = OperationNotificationService.stopSignal();
     private final AtomicBoolean sessionCheckActive = new AtomicBoolean(false);
+    private final AtomicBoolean resourcesReleased = new AtomicBoolean(false);
 
     private FrameLayout root;
     private WebView dashboard;
@@ -58,6 +69,8 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
     private WebViewAssetLoader assetLoader;
     private RepostStore store;
     private TikTokBrowser tiktok;
+    private AppUpdateManager updateManager;
+    private AppUpdateManager.UpdateInfo requiredUpdate;
     private OnBackInvokedCallback systemBackCallback;
     private boolean browserVisible;
     private boolean destroyed;
@@ -75,6 +88,8 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
     private long startedAt;
     private long finishedAt;
     private long lastSessionCheckAt;
+    private Runnable pendingOperationStart;
+    private boolean mainUiInitialized;
 
     private final Runnable sessionProbe = new Runnable() {
         @Override public void run() {
@@ -88,7 +103,14 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
         super.onCreate(savedInstanceState);
         store = new RepostStore(this);
         configureWindow();
+        updateManager = new AppUpdateManager(this);
+        setContentView(createUpdateCheckScreen());
+        checkForRequiredUpdate();
+    }
 
+    private void initializeMainUi() {
+        if (mainUiInitialized || isFinishing()) return;
+        mainUiInitialized = true;
         root = new FrameLayout(this);
         rootInsetListener();
         root.setBackgroundColor(Color.rgb(245, 243, 237));
@@ -123,6 +145,130 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
         // Restore the persistent TikTok WebView session in the background so the
         // dashboard can show its real session state without requiring a manual check.
         tiktok.openIfNeeded();
+    }
+
+    private void checkForRequiredUpdate() {
+        updateManager.check(update -> {
+            if (destroyed || isFinishing()) return;
+            requiredUpdate = update;
+            if (update != null) setContentView(createRequiredUpdateScreen(update));
+            else initializeMainUi();
+        });
+    }
+
+    private View createUpdateCheckScreen() {
+        boolean arabic = isArabicUi();
+        LinearLayout content = createNativeScreen(arabic);
+        ProgressBar progress = new ProgressBar(this);
+        LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(dp(36), dp(36));
+        progressParams.gravity = Gravity.CENTER_HORIZONTAL;
+        content.addView(progress, progressParams);
+        TextView label = nativeText(arabic ? "جاري التحقق من التحديثات…" : "Checking for updates…", 16, Color.rgb(81, 79, 71), arabic);
+        LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(-1, -2);
+        labelParams.topMargin = dp(18);
+        content.addView(label, labelParams);
+        return content;
+    }
+
+    private View createRequiredUpdateScreen(AppUpdateManager.UpdateInfo update) {
+        boolean arabic = isArabicUi();
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.setBackgroundColor(Color.rgb(245, 243, 237));
+        scroll.setLayoutDirection(arabic ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
+        LinearLayout content = createNativeScreen(arabic);
+        content.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView badge = nativeText(arabic ? "تحديث مطلوب" : "UPDATE REQUIRED", 13, Color.rgb(135, 111, 51), arabic);
+        badge.setAllCaps(!arabic);
+        content.addView(badge, nativeMargins(0, 0, 0, 10));
+
+        TextView title = nativeText(arabic ? "حدّث التطبيق للمتابعة" : "Update to continue", 26, Color.rgb(43, 42, 38), arabic);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        content.addView(title, nativeMargins(0, 0, 0, 10));
+
+        TextView version = nativeText((arabic ? "الإصدار الجديد " : "New version ") + update.versionName, 15, Color.rgb(98, 95, 86), arabic);
+        content.addView(version, nativeMargins(0, 0, 0, 14));
+
+        String message = arabic ? update.messageAr : update.message;
+        TextView description = nativeText(message, 16, Color.rgb(81, 79, 71), arabic);
+        description.setLineSpacing(dp(3), 1f);
+        content.addView(description, nativeMargins(0, 0, 0, 24));
+
+        Button download = new Button(this);
+        download.setText(arabic ? "تنزيل التحديث من Chrome" : "Download update in Chrome");
+        download.setTextColor(Color.WHITE);
+        download.setAllCaps(false);
+        download.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(119, 105, 62)));
+        download.setOnClickListener(view -> openUpdateDownload(update));
+        content.addView(download, nativeMargins(0, 0, 0, 8));
+
+        Button retry = new Button(this);
+        retry.setText(arabic ? "إعادة التحقق" : "Check again");
+        retry.setAllCaps(false);
+        retry.setOnClickListener(view -> {
+            setContentView(createUpdateCheckScreen());
+            checkForRequiredUpdate();
+        });
+        content.addView(retry, nativeMargins(0, 0, 0, 0));
+
+        scroll.addView(content);
+        return scroll;
+    }
+
+    private LinearLayout createNativeScreen(boolean arabic) {
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setGravity(Gravity.CENTER_HORIZONTAL);
+        content.setPadding(dp(28), dp(28), dp(28), dp(28));
+        content.setLayoutDirection(arabic ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
+        content.setBackgroundColor(Color.rgb(245, 243, 237));
+        content.setOnApplyWindowInsetsListener((view, insets) -> {
+            int left = dp(28), top = dp(28), right = dp(28), bottom = dp(28);
+            if (Build.VERSION.SDK_INT >= 30) {
+                android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars());
+                left += bars.left; top += bars.top; right += bars.right; bottom += bars.bottom;
+            }
+            view.setPadding(left, top, right, bottom);
+            return insets;
+        });
+        return content;
+    }
+
+    private TextView nativeText(String value, int sp, int color, boolean arabic) {
+        TextView text = new TextView(this);
+        text.setText(value);
+        text.setTextSize(sp);
+        text.setTextColor(color);
+        text.setGravity(arabic ? Gravity.RIGHT : Gravity.LEFT);
+        text.setTextDirection(arabic ? View.TEXT_DIRECTION_RTL : View.TEXT_DIRECTION_LTR);
+        return text;
+    }
+
+    private LinearLayout.LayoutParams nativeMargins(int left, int top, int right, int bottom) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(dp(left), dp(top), dp(right), dp(bottom));
+        return params;
+    }
+
+    private boolean isArabicUi() {
+        return store != null && "ar".equals(store.setting("language", "en"));
+    }
+
+    private void openUpdateDownload(AppUpdateManager.UpdateInfo update) {
+        Intent chrome = new Intent(Intent.ACTION_VIEW, update.apkUri);
+        chrome.setPackage("com.android.chrome");
+        try {
+            startActivity(chrome);
+        } catch (Exception chromeUnavailable) {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, update.apkUri));
+            } catch (Exception noBrowserAvailable) {
+                Toast.makeText(this, isArabicUi()
+                        ? "تعذر فتح رابط التنزيل. جرّب مرة أخرى بعد تثبيت متصفح."
+                        : "Could not open the download link. Install a browser and try again.", Toast.LENGTH_LONG).show();
+            }
+        }
     }
 
     private void configureWindow() {
@@ -294,10 +440,46 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
     }
 
     private void startScan(String id) {
+        if (logoutQueued.get() || operationActive.get()) { replyError(id, "Another operation is already running."); return; }
+        if (!ensureNotificationPermission(id, () -> beginScan(id))) return;
+        beginScan(id);
+    }
+
+    private void beginScan(String id) {
         if (logoutQueued.get() || !operationActive.compareAndSet(false, true)) { replyError(id, "Another operation is already running."); return; }
         stopRequested.set(false);
+        boolean arabic = "ar".equals(store.setting("language", "en"));
+        OperationNotificationService.start(this,
+                arabic ? "جاري فحص إعادة النشر" : "Scanning reposts",
+                arabic ? "جاري تجهيز الفحص…" : "Preparing scan…", arabic, System.currentTimeMillis());
         reply(id, true);
         operations.execute(() -> runScan());
+    }
+
+    private boolean ensureNotificationPermission(String id, Runnable continuation) {
+        if (Build.VERSION.SDK_INT < 33 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return true;
+        if (pendingOperationStart != null) {
+            replyError(id, "Waiting for notification permission.");
+            return false;
+        }
+        pendingOperationStart = continuation;
+        requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQUEST_POST_NOTIFICATIONS);
+        return false;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode != REQUEST_POST_NOTIFICATIONS) return;
+        Runnable continuation = pendingOperationStart;
+        pendingOperationStart = null;
+        if (grantResults.length == 0 || grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+            boolean arabic = "ar".equals(store.setting("language", "en"));
+            Toast.makeText(this, arabic
+                    ? "الإشعار متوقف؛ قد لا يظهر تقدم العملية في مركز الإشعارات."
+                    : "Notifications are off; operation progress may not appear in the notification drawer.", Toast.LENGTH_LONG).show();
+        }
+        if (continuation != null) continuation.run();
     }
 
     private void runScan() {
@@ -343,6 +525,7 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
                 String nextCursor = page.optString("cursor", cursor);
                 final int progressPage = pageNumber;
                 final int progressCount = count;
+                publishScanNotification(progressPage, progressCount, startedAt);
                 main.post(() -> {
                     pagesScanned = progressPage; found = progressCount;
                     flow = "Scanning · page " + progressPage + " · " + progressCount + " found";
@@ -368,10 +551,17 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
         } finally {
             operationActive.set(false);
             if (logoutQueued.get()) main.post(this::runQueuedLogout);
+            if (destroyed) main.post(this::releaseActivityResources);
         }
     }
 
     private void startRemoval(String id) {
+        if (logoutQueued.get() || operationActive.get()) { replyError(id, "Another operation is already running."); return; }
+        if (!ensureNotificationPermission(id, () -> beginRemoval(id))) return;
+        beginRemoval(id);
+    }
+
+    private void beginRemoval(String id) {
         if (logoutQueued.get() || !operationActive.compareAndSet(false, true)) { replyError(id, "Another operation is already running."); return; }
         JSONArray queue;
         try { queue = store.pendingSelected(); }
@@ -380,6 +570,10 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
         stopRequested.set(false);
         total = queue.length(); processed = 0; requested = 0; failed = 0; found = store.itemCount(); pagesScanned = 0; verificationPage = 0; verificationTotal = 0;
         startedAt = System.currentTimeMillis(); finishedAt = 0; flow = "Removing selected · 0 / " + total; activity = progress("remove", "running");
+        boolean arabic = "ar".equals(store.setting("language", "en"));
+        OperationNotificationService.start(this,
+                arabic ? "جاري إزالة إعادة النشر" : "Removing reposts",
+                arabic ? "تمت معالجة 0 من " + total : "Processed 0 of " + total, arabic, startedAt);
         emitOverview(); reply(id, true);
         operations.execute(() -> runRemoval(queue));
     }
@@ -399,6 +593,7 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
             main.post(() -> finishOperation("Stopped · " + reason, "error"));
             operationActive.set(false);
             if (logoutQueued.get()) main.post(this::runQueuedLogout);
+            if (destroyed) main.post(this::releaseActivityResources);
             return;
         }
 
@@ -482,6 +677,7 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
         operationActive.set(false);
         Log.i(TAG, "Removal " + (flow.startsWith("Removal complete") ? "completed" : "finished") + ": requested=" + requested + ", failed=" + failed + ", elapsedMs=" + (System.currentTimeMillis() - removalStartedAt));
         if (logoutQueued.get()) main.post(this::runQueuedLogout);
+        if (destroyed) main.post(this::releaseActivityResources);
     }
 
     private int verifyRemoved(JSONArray ids, String expectedId) throws Exception {
@@ -677,7 +873,37 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
         flow = finalFlow;
         finishedAt = System.currentTimeMillis();
         activity = progress(activity.optString("kind", "idle"), phase);
+        boolean arabic = "ar".equals(store.setting("language", "en"));
+        String kind = activity.optString("kind", "scan");
+        String title;
+        String text;
+        if ("complete".equals(phase)) {
+            title = "scan".equals(kind)
+                    ? (arabic ? "اكتمل فحص إعادة النشر" : "Repost scan complete")
+                    : (arabic ? "اكتملت إزالة إعادة النشر" : "Repost removal complete");
+            text = "scan".equals(kind)
+                    ? (arabic ? "تم العثور على " + found + " إعادة نشر." : found + " reposts found.")
+                    : (arabic ? "تمت معالجة " + processed + " من " + total + " إعادة نشر." : "Processed " + processed + " of " + total + " reposts.");
+        } else {
+            title = arabic ? "انتهت عملية إعادة النشر" : "Repost operation finished";
+            text = arabic ? "تمت معالجة " + processed + " من " + Math.max(total, processed) + ". افتح التطبيق للتفاصيل."
+                    : "Processed " + processed + " of " + Math.max(total, processed) + ". Open the app for details.";
+        }
+        updateOperationNotification();
+        OperationNotificationService.finish(this, title, text);
         emitOverview();
+    }
+
+    private void publishScanNotification(int scannedPages, int foundCount, long operationStartedAt) {
+        boolean arabic = "ar".equals(store.setting("language", "en"));
+        OperationNotificationService.update(
+                arabic ? "جاري فحص إعادة النشر" : "Scanning reposts",
+                arabic
+                        ? "الصفحة " + scannedPages + " · تم العثور على " + foundCount
+                        : "Page " + scannedPages + " · " + foundCount + " found",
+                String.valueOf(foundCount), arabic ? "تم العثور" : "Found",
+                String.valueOf(scannedPages), arabic ? "الصفحات" : "Pages",
+                scannedPages, 0, true, arabic, operationStartedAt);
     }
 
     private void browserControl(String action) {
@@ -763,7 +989,80 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
         emitOverview();
     }
 
-    private void emitOverview() { try { emit("overview", overview()); } catch (Exception ignored) { } }
+    private void emitOverview() {
+        try {
+            JSONObject snapshot = overview();
+            if (operationActive.get()) updateOperationNotification();
+            emit("overview", snapshot);
+        } catch (Exception ignored) { }
+    }
+
+    private void updateOperationNotification() {
+        boolean arabic = "ar".equals(store.setting("language", "en"));
+        String kind = activity.optString("kind", "scan");
+        String phase = activity.optString("phase", "running");
+        String title;
+        String text;
+        String statOneValue;
+        String statOneLabel;
+        String statTwoValue;
+        String statTwoLabel;
+        int current;
+        int maximum;
+        boolean indeterminate;
+        if ("scan".equals(kind)) {
+            title = arabic ? "جاري فحص إعادة النشر" : "Scanning reposts";
+            text = arabic
+                    ? "الصفحة " + pagesScanned + " · تم العثور على " + found
+                    : "Page " + pagesScanned + " · " + found + " found";
+            current = pagesScanned;
+            maximum = 0;
+            indeterminate = true;
+            statOneValue = String.valueOf(found);
+            statOneLabel = arabic ? "تم العثور" : "Found";
+            statTwoValue = String.valueOf(pagesScanned);
+            statTwoLabel = arabic ? "الصفحات" : "Pages";
+        } else if ("verifying".equals(phase)) {
+            title = arabic ? "جاري التحقق من الإزالة" : "Verifying removals";
+            text = arabic
+                    ? "الصفحة " + verificationPage + " من " + verificationTotal
+                    : "Page " + verificationPage + " of " + verificationTotal;
+            current = verificationPage;
+            maximum = verificationTotal;
+            indeterminate = verificationTotal <= 0;
+            statOneValue = String.valueOf(requested);
+            statOneLabel = arabic ? "تمت الإزالة" : "Removed";
+            statTwoValue = verificationPage + "/" + verificationTotal;
+            statTwoLabel = arabic ? "التحقق" : "Verified";
+        } else {
+            title = arabic ? "جاري إزالة إعادة النشر" : "Removing reposts";
+            text = arabic
+                    ? "تمت معالجة " + processed + " من " + total + " · تمت الإزالة " + requested
+                    : "Processed " + processed + " of " + total + " · removed " + requested;
+            current = processed;
+            maximum = total;
+            indeterminate = total <= 0;
+            statOneValue = processed + "/" + total;
+            statOneLabel = arabic ? "تمت المعالجة" : "Processed";
+            statTwoValue = String.valueOf(requested);
+            statTwoLabel = arabic ? "تمت الإزالة" : "Removed";
+        }
+        OperationNotificationService.update(title, text, statOneValue, statOneLabel,
+                statTwoValue, statTwoLabel, current, maximum, indeterminate, arabic, startedAt);
+    }
+
+    private void releaseActivityResources() {
+        if (!resourcesReleased.compareAndSet(false, true)) return;
+        operations.shutdown();
+        if (tiktok != null) tiktok.dispose();
+        if (dashboard != null) {
+            dashboard.removeJavascriptInterface("RepostRemoverAndroid");
+            dashboard.stopLoading();
+            dashboard.setWebViewClient(new WebViewClient());
+            dashboard.destroy();
+        }
+        if (store != null) store.close();
+    }
     private void emitSession() { emit("session", session); }
 
     private void emit(String event, Object value) {
@@ -859,15 +1158,9 @@ public final class MainActivity extends Activity implements AndroidJavascriptBri
             systemBackCallback = null;
         }
         main.removeCallbacks(sessionProbe);
-        operations.shutdownNow();
-        if (tiktok != null) tiktok.dispose();
-        if (dashboard != null) {
-            dashboard.removeJavascriptInterface("RepostRemoverAndroid");
-            dashboard.stopLoading();
-            dashboard.setWebViewClient(new WebViewClient());
-            dashboard.destroy();
-        }
-        if (store != null) store.close();
+        if (updateManager != null) updateManager.shutdown();
+        if (!operationActive.get()) releaseActivityResources();
         super.onDestroy();
     }
 }
+
