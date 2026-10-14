@@ -1,6 +1,6 @@
 {
-  "minimumSupportedVersionCode": 4,
-  "message": "A new version is required to keep using Repost Remover.",
-  "messageAr": "يلزم تثبيت الإصدار الجديد لمتابعة استخدام Repost Remover."
+  "minimumSupportedVersionCode": 5,
+  "message": "Test update: install this build to continue using Repost Remover.",
+  "messageAr": "تحديث تجريبي: ثبّت هذه النسخة لمتابعة استخدام Repost Remover."
 }
 
