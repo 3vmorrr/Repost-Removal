@@ -44,7 +44,7 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         working-directory: android
-        run: ./gradlew --no-daemon assembleRelease
+        run: bash ./gradlew --no-daemon assembleRelease
 
       - name: Prepare release assets
         run: |
