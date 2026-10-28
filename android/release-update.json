@@ -1,6 +1,5 @@
 {
-  "minimumSupportedVersionCode": 4,
-  "message": "A new version is required to keep using Repost Remover.",
-  "messageAr": "يلزم تثبيت الإصدار الجديد لمتابعة استخدام Repost Remover."
+  "minimumSupportedVersionCode": 10,
+  "message": "Update required: this release restores the ad-free version of Repost Remover.",
+  "messageAr": "التحديث مطلوب: يعيد هذا الإصدار نسخة Repost Remover بدون إعلانات."
 }
-
